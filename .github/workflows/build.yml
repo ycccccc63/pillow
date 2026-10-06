@@ -1,0 +1,49 @@
+name: Build Windows Executable
+
+# 觸發條件：當推送到 main 分支，或者推送以 v 開頭的 Tag (例如 v1.0.0) 時啟動
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: 1. 檢出專案程式碼
+      uses: actions/checkout@v4
+
+    - name: 2. 設定 Python 環境
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: 3. 安裝依賴套件與 PyInstaller
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: 4. 使用 PyInstaller 打包 Pillow.py 為 .exe
+      run: |
+        # --onefile: 打包成單一 .exe 檔
+        # --noconsole: 隱藏命令提示字元黑底視窗 (Tkinter GUI 專用)
+        # --name: 指定產生的 exe 檔名 (例如 ImageConverter.exe)
+        pyinstaller --onefile --noconsole --name ImageConverter Pillow.py
+
+    - name: 5. 上傳編譯好的 .exe 為 Artifact (供一般 Push 下載)
+      uses: actions/upload-artifact@v4
+      with:
+        name: ImageConverter-Windows-EXE
+        path: dist/ImageConverter.exe
+
+    - name: 6. 發布至 GitHub Releases (當推送版號 Tag 時執行)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/ImageConverter.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
